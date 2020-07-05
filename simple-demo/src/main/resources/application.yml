@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: sharding‐jdbc‐simple‐demo
+  #指springboot启动时，如果发现重名的bean就覆盖它
+  #因为在注册Sharding-jdbc的dataSource时，spring容易发现druid已经定义名称为dataSource的bean,并且禁用了覆盖
+  #所以我们要设置为true
+  main:
+    allow-bean-definition-overriding: true
+
+# sharding-jdbc 分片规则，该配置文件只进行了一个数据库水平分表的配置
+
+
+sharding:
+  jdbc:
+    #定义数据源（有多个数据源，以逗号分隔，在配置每个数据源的配置）
+    datasource:
+      #定义数据源（有多个数据源，以逗号分隔，在配置每个数据源的配置）
+      # “m1”为自定义名称，需要和下面的数据源的配置对应
+      names: m1
+      m1:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://localhost:3306/order_db?serverTimezone=GMT&autoReconnect=true&failOverReadOnly=false&verifyServerCertificate=false
+        username: root
+        password: root
+    config:
+      sharding:
+        tables:
+          #指定t_order表的数据分布情况，配置数据节点
+          #此处的tables.t_order中的（t_order）为自定义名称，它和我们在程序中写的sql语句中的表名要对应起来，假如我们这叫abc,那么当我们写sql语句要操作该表时也应该写abc
+          #（和数据库中真实名称无关，因为sharding-jdbc会帮我们处理sql语句）该表达式表示有实际有t_order_1,t_order_2两张表，通过拼接后面的1，2来确定
+          t_order:
+            actualDataNodes: m1.t_order_${1..2}
+            # 指定t_order表的分片策略，分片策略包括分片键（以那个字段进行分片操作）和分片算法（通过这个算法来确定用那个表来操作该数据）
+            tableStrategy:
+              inline:
+                # 以order_id的值来分片
+                shardingColumn: order_id
+                # 通过order_id除2取余加1来确定使用那张表  (官网的示例配置叫algorithmInlineExpression是错误的，会抛异常：说找不到algorithmExpression)
+                algorithmExpression: t_order_${order_id % 2 + 1}
+            #指定t_order表的主键字段（默认采用的是SNOWFLAKE(雪花)算法，全局唯一自增的Id）
+            keyGeneratorColumnName: order_id
+      props:
+      #是否开启SQL显示，默认值: false
+        sql.show: true
+
+mybatis:
+  configuration:
+    #驼峰命名
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    root: info
+    org:
+      springframework:
+        web: ERROR
+    cn:
+      pengan:
+        simple-demo: debug
+    druid:
+      sql:
+        debug
