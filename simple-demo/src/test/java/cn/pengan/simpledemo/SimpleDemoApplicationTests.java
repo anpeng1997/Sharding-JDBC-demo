@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 
 @SpringBootTest()
-
 class SimpleDemoApplicationTests {
 
     @Autowired
@@ -24,7 +23,7 @@ class SimpleDemoApplicationTests {
     @Test
     void testInsertOrder() {
         for (int i = 1; i <= 30; i++) {
-            orderDao.insertOrder(new BigDecimal(i),1L,"未处理");
+            orderDao.insertOrder(new BigDecimal(i),7L,"未处理");
         }
     }
 
