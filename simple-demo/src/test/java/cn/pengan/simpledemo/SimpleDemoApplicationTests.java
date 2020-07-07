@@ -1,6 +1,8 @@
 package cn.pengan.simpledemo;
 
+import cn.pengan.simpledemo.dao.IDictDao;
 import cn.pengan.simpledemo.dao.IOrderDao;
+import cn.pengan.simpledemo.dao.IUserDao;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +17,12 @@ class SimpleDemoApplicationTests {
 
     @Autowired
     private IOrderDao orderDao;
+
+    @Autowired
+    private IUserDao userDao;
+
+    @Autowired
+    private IDictDao dictDao;
 
     @Test
     void contextLoads() {
@@ -36,7 +44,25 @@ class SimpleDemoApplicationTests {
     @Test
     void testFindAll() {
         List<Map> all = orderDao.findAll();
-        System.out.println(all.size());
-        //all.forEach(System.out::println);
+        //System.out.println(all.size());
+        all.forEach(System.out::println);
+    }
+
+    @Test
+    void testInsertUser(){
+        int i = userDao.insertUser("tom1", '1');
+        System.out.println(i);
+    }
+
+    @Test
+    void testFindAllUser() {
+        List<Map> allUser = userDao.findAllUser();
+        allUser.forEach(System.out::println);
+    }
+
+    @Test
+    void testInsertDict() {
+        int i = dictDao.insetDict(5L, "1", "6666", "已处理");
+        System.out.println(i);
     }
 }

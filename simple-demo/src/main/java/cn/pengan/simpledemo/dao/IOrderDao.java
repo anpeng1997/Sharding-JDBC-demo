@@ -24,6 +24,6 @@ public interface IOrderDao {
             "</script>")
     List<Map> findByIds(@Param("ids")List<Long> ids);
 
-    @Select("select * from t_order")
+    @Select("select * from t_order as o,t_dict as d where o.status = d.value")
     List<Map> findAll();
 }

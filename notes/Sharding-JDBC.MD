@@ -46,19 +46,19 @@
 
 ![img](./asdqweqwsdgttjytsdf2341232.png)
 
-## 1.2 分库分表带来的问题
+### 1.2 分库分表带来的问题
 
-### 1.2.1 事务一致性
+#### 1.2.1 事务一致性
 
 > 由于分库分表把数据分布在不同的库，甚至不同的服务器，不可避免会带来分布式式事务的问题。
 
-### 1.2.2 跨节点查询
+#### 1.2.2 跨节点查询
 
 > 由于数据不在同一数据库，无法进行关联查询。
 >
 > 这时我们可以将关联查询分为两次查询，第一次查询的结果集中找出关联数据的Id,然后根据id发起第二次请求等到相关联数据，最后将获得到数据进行拼接
 
-### 1.2.3 跨节点分页、排序函数
+#### 1.2.3 跨节点分页、排序函数
 
 > 跨节点多库进行排序查询时，limit分页，order by排序等问题，就变得复杂了。需要先在不同的分片节点中将数据进行排序并返回，然后将不同的分片返回的结果集进行汇总和再次排序
 
@@ -363,3 +363,212 @@ public class SimpleDemoApplication {
 *差异*
 
 > 内存限制模式适用于OLAP操作，可以通过放宽对数据库连接的限制提升系统吞吐量； 连接限制模式适用于OLTP操 作，OLTP通常带有分片键，会路由到单一的分片，因此严格控制数据库连接，以保证在线系统数据库资源能够被 更多的应用所使用，是明智的选择。
+
+## 4. 分库分表、垂直分库、公共表配置示例
+
+```properties
+
+# sharding-jdbc 分片规则，该配置文件只进行了一个数据库水平分表的配置
+
+#定义数据源（有多个数据源，以逗号分隔，在配置每个数据源的配置）
+# “m1”为自定义名称，需要和下面的数据源的配置对应
+sharding.jdbc.datasource.names = m0,m1,m2
+
+# 将user表拆分出来，垂直分库
+sharding.jdbc.datasource.m0.type = com.alibaba.druid.pool.DruidDataSource
+sharding.jdbc.datasource.m0.driverClassName = com.mysql.cj.jdbc.Driver
+sharding.jdbc.datasource.m0.url = jdbc:mysql://localhost:3306/user_db?serverTimezone=GMT&autoReconnect=true&failOverReadOnly=false&verifyServerCertificate=false
+sharding.jdbc.datasource.m0.username = root
+sharding.jdbc.datasource.m0.password = root
+
+sharding.jdbc.datasource.m1.type = com.alibaba.druid.pool.DruidDataSource
+sharding.jdbc.datasource.m1.driverClassName = com.mysql.cj.jdbc.Driver
+sharding.jdbc.datasource.m1.url = jdbc:mysql://localhost:3306/order_db_1?serverTimezone=GMT&autoReconnect=true&failOverReadOnly=false&verifyServerCertificate=false
+sharding.jdbc.datasource.m1.username = root
+sharding.jdbc.datasource.m1.password = root
+
+sharding.jdbc.datasource.m2.type = com.alibaba.druid.pool.DruidDataSource
+sharding.jdbc.datasource.m2.driverClassName = com.mysql.cj.jdbc.Driver
+sharding.jdbc.datasource.m2.url = jdbc:mysql://localhost:3306/order_db_2?serverTimezone=GMT&autoReconnect=true&failOverReadOnly=false&verifyServerCertificate=false
+sharding.jdbc.datasource.m2.username = root
+sharding.jdbc.datasource.m2.password = root
+
+#配置公共表，在m0,m1,m2数据源中都有一张t_dict,它作为这几个库的公共表
+sharding.jdbc.config.sharding.broadcast-tables = t_dict
+
+# 指定数据节点，因为user库是从user拆分出来，只有一个库及表，所以我们不用配置它的分片策略
+sharding.jdbc.config.sharding.tables.t_user.actual-data-nodes=m0.t_user
+sharding.jdbc.config.sharding.tables.t_user.key-generator-column-name=user_id
+
+# 指定t_order表的数据分布情况，配置数据节点
+#   此处的tables.t_order中的（t_order）为自定义名称，它和我们在程序中写的sql语句中的表名要对应起来，假如我们这叫abc,那么当我们写sql语句要操作该表时也应该写abc
+#  （和数据库中真实名称无关，因为sharding-jdbc会帮我们处理sql语句）      该表达式表示有实际有t_order_1,t_order_2两张表，通过拼接后面的1，2来确定
+sharding.jdbc.config.sharding.tables.t_order.actual-data-nodes= m$->{1..2}.t_order_$->{1..2}
+
+
+#指定t_order表的主键生成策略为SNOWFLAKE （默认采用的是雪花算法，全局唯一自增的Id）
+sharding.jdbc.config.sharding.tables.t_order.key-generator-column-name=order_id
+#http://shardingsphere.apache.org/document/legacy/2.x/cn/02-guide/key-generator/
+# **不要指定默认的算法，否则会报错**
+#sharding.jdbc.config.sharding.tables.t_order.key-generator-class-name= io.shardingjdbc.core.keygen.DefaultKeyGenerator
+
+## 指定t_order表的分库策略,这里使用user_id作为分片键
+sharding.jdbc.config.sharding.tables.t_order.database-strategy.inline.sharding-column= user_id
+sharding.jdbc.config.sharding.tables.t_order.database-strategy.inline.algorithm-expression= m$->{user_id % 2 + 1}
+
+## 指定t_order表的分片策略，分片策略包括分片键（以那个字段进行分片操作）和分片算法（通过这个算法来确定用那个表来操作该数据）
+# 以order_id的值来分片
+sharding.jdbc.config.sharding.tables.t_order.table-strategy.inline.sharding-column= order_id
+# 通过order_id除2取余加1来确定使用那张表
+sharding.jdbc.config.sharding.tables.t_order.table-strategy.inline.algorithm-expression= t_order_$->{order_id % 2 + 1}
+
+```
+
+## 5. 主从同步
+
+> Sharding-JDBC提供一主多从的读写分离配置，并不提供数据同步功能，我们需要自己配置mysql的主从库之间的同步功能
+
+### 5.1 Docker安装MySQL主从库配置
+
+#### 5.1.1 master库的my.ini配置文件配置
+
+```cnf
+# 创建本地创建 /mysql-master/my.cnf 文件夹
+
+[mysql]
+default-character-set=utf8
+
+[mysqld]
+
+user=mysql
+character-set-server=utf8
+max_allowed_packet=128M
+
+#给数据库服务的唯一标识
+server-id=3306
+#开启二进制文件，后面的设置的master-bin就是二进制文件名字的前缀
+log-bin=master-bin
+#开启二进制文件的索引
+log-bin-index=master-bin.index
+
+#设置需要同步的数据库
+replicate_wild_do_table=user_db.%
+#屏蔽系统库同步
+replicate_wild_ignore_table=mysql.%
+replicate_wild_ignore_table=information_schema.%
+replicate_wild_ignore_table=performance_schema.%
+
+```
+
+#### 5.1.2 slave库的my.ini配置文件配置
+
+```cnf
+# 创建本地创建 /mysql-slave/my.cnf 文件夹
+
+[mysql]
+default-character-set=utf8
+
+[mysqld]
+
+character-set-server=utf8
+
+server-id=3308
+
+
+## 开启二进制日志功能，以备Slave作为其它Slave的Master时使用
+log-bin=mysql-slave-bin
+
+relay-log=slave-relay-bin
+
+relay-log-index=slave-relay-bin.index
+
+#设置需要同步的数据库
+replicate_wild_do_table=user_db.%
+#屏蔽系统库同步
+replicate_wild_ignore_table=mysql.%
+replicate_wild_ignore_table=information_schema.%
+replicate_wild_ignore_table=performance_schema.%
+
+```
+
+#### 5.1.3 执行docker命令
+
+```powershell
+ # -v 参数为上面创建的配置文件路径
+ 
+ docker run -d -p 3308:3306 --restart always --privileged=true -e MYSQL_USER="root" -e MYSQL_PASSWORD="root" -e MYSQL_ROOT_PASSWORD="root" --name mysql-slave -v /e/my-slave/my.cnf:/etc/mysql/my.cnf  mysql:5.7
+ 
+  docker run -d -p 3306:3306 --restart always --privileged=true -e MYSQL_USER="root" -e MYSQL_PASSWORD="root" -e MYSQL_ROOT_PASSWORD="root"  --name mysql-master -v /e/my-master/my.cnf:/etc/mysql/my.cnf  mysql:5.7
+
+```
+
+#### 5.1.4 在Slave数据库中配置
+
+```sql
+# master_log_file和master_log_pos是在master数据库中使用show master status;查询到的数据
+# mater_host 需要通过 docker inspect --format='{{.NetworkSettings.IPAddress}}' 容器名称|容器id 查看master 的ip来填写
+change master to master_host='172.17.0.2', master_port=3306, master_user='root',master_password='root', master_log_file='master-bin.000003',master_log_pos=154;
+
+
+
+# 其它的管理 主从数据的命令
+
+## slave
+	start slave
+	
+	show slave status;
+	
+	stop slave;
+	
+	#设置跳过一步错误
+	set global sql_slave_skip_counter =1; 
+	
+	#清除slave上的同步位置，删除所有旧的同步日志，使用新的日志重新开始.(使用前先停止slave服务）
+	
+	reset slave;
+	
+## master
+                                          
+	show master status;
+	
+	# 重置master log,重置之后要在slave库中也重新执行 change master
+	reset master;
+	
+	#查看当前数据的server_id
+	show variables like 'server_id';
+```
+
+### 5.2 Sharding-JDBC的配置
+
+```properties
+sharding.jdbc.datasource.names = m0,s0
+
+# 将user表拆分出来，垂直分库
+sharding.jdbc.datasource.m0.type = com.alibaba.druid.pool.DruidDataSource
+sharding.jdbc.datasource.m0.driverClassName = com.mysql.cj.jdbc.Driver
+sharding.jdbc.datasource.m0.url = jdbc:mysql://localhost:3306/user_db?serverTimezone=GMT&autoReconnect=true&failOverReadOnly=false&verifyServerCertificate=false
+sharding.jdbc.datasource.m0.username = root
+sharding.jdbc.datasource.m0.password = root
+
+# 主从库，m0为主，s0为从数据库
+sharding.jdbc.datasource.s0.type = com.alibaba.druid.pool.DruidDataSource
+sharding.jdbc.datasource.s0.driverClassName = com.mysql.cj.jdbc.Driver
+sharding.jdbc.datasource.s0.url = jdbc:mysql://localhost:3308/user_db?serverTimezone=GMT&autoReconnect=true&failOverReadOnly=false&verifyServerCertificate=false
+sharding.jdbc.datasource.s0.username = root
+sharding.jdbc.datasource.s0.password = root
+
+### m0，s0的主从库配置
+sharding.jdbc.config.sharding.master-slave-rules.ds0.master-data-source-name = m0
+## 如果有多个从库数据源，用逗号分隔
+sharding.jdbc.config.sharding.master-slave-rules.ds0.slave-data-source-names = s0
+### 负载均衡算法
+sharding.jdbc.config.sharding.master-slave-rules.ds0.load-balance-algorithm-type = round_robin
+
+
+# 垂直分库配置
+# 指定数据节点，因为User库是从user表过来的，只有一个库及表，所以我们不用写表达式，其它的分片策略也不需要配置
+        ## 因为配置了user库的主从库同步，所以这里要配置成主从的名称（本来这里是m0.t_user）
+sharding.jdbc.config.sharding.tables.t_user.actual-data-nodes=ds0.t_user
+sharding.jdbc.config.sharding.tables.t_user.key-generator-column-name=user_id
+```
+
