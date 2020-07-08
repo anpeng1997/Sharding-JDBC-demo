@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.pengan.shopdemo.dao.IProductDao">
+    <select id="findProductInfoByStoreId" parameterType="Long" resultType="ProductInfo">
+        SELECT
+            p.*,
+            r.region_name AS store_region_name,
+            pd.id,
+            pd.descript
+        FROM
+            product_info AS p
+        LEFT JOIN region AS r ON p.region_code = r.region_code
+        LEFT JOIN product_descript AS pd ON p.product_info_id = pd.product_info_id
+        WHERE p.store_info_id = #{storeInfoId}
+    </select>
+
+    <insert id="insertProductInfo" parameterType="ProductInfo"
+            useGeneratedKeys="true" keyProperty="productInfoId" keyColumn="product_info_id">
+        INSERT INTO product_info(store_info_id,product_name,spec,region_code,price,image_url)
+        value(#{storeInfoId},#{productName},#{spec},#{regionCode},#{price},#{imageUrl});
+    </insert>
+
+    <insert id="insertProductDesc" parameterType="ProductDescript"
+    useGeneratedKeys="true" keyColumn="id" keyProperty="id">
+        INSERT INTO product_descript(product_info_id,descript,store_info_id)
+        value(#{productInfoId},#{descript},#{storeInfoId});
+    </insert>
+</mapper>

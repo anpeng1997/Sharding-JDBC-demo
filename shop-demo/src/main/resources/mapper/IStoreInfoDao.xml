@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.pengan.shopdemo.dao.IStoreInfoDao">
+    <select id="findAll" resultType="StoreInfo">
+        SELECT s.*,r.region_name FROM store_info AS s,region AS r
+        WHERE s.region_code = r.region_code
+    </select>
+    <insert id="insertStoreInfo" parameterType="StoreInfo">
+        INSERT INTO store_info(store_name,reputation,region_code) value(#{storeName},#{reputation},#{regionCode});
+    </insert>
+</mapper>

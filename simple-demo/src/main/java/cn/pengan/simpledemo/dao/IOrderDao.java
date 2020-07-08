@@ -13,7 +13,7 @@ import java.util.Map;
 public interface IOrderDao {
 
     @Insert("INSERT INTO t_order(price,user_id,status) value(#{price},#{userId},#{status})")
-    int insertOrder(@Param("price")BigDecimal price,@Param("userId") Long userId,@Param("status")String status);
+    int insertOrder(@Param("price") BigDecimal price, @Param("userId") Long userId, @Param("status") String status);
 
     @Select("<script>" +
             "select * from t_order " +
@@ -22,7 +22,7 @@ public interface IOrderDao {
             "#{id}" +
             "</foreach>" +
             "</script>")
-    List<Map> findByIds(@Param("ids")List<Long> ids);
+    List<Map> findByIds(@Param("ids") List<Long> ids);
 
     @Select("select * from t_order as o,t_dict as d where o.status = d.value")
     List<Map> findAll();

@@ -31,7 +31,7 @@ class SimpleDemoApplicationTests {
     @Test
     void testInsertOrder() {
         for (int i = 1; i <= 30; i++) {
-            orderDao.insertOrder(new BigDecimal(i),7L,"未处理");
+            orderDao.insertOrder(new BigDecimal(i), 7L, "未处理");
         }
     }
 
@@ -49,7 +49,7 @@ class SimpleDemoApplicationTests {
     }
 
     @Test
-    void testInsertUser(){
+    void testInsertUser() {
         int i = userDao.insertUser("tom1", '1');
         System.out.println(i);
     }
