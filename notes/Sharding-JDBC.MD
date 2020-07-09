@@ -572,3 +572,44 @@ sharding.jdbc.config.sharding.tables.t_user.actual-data-nodes=ds0.t_user
 sharding.jdbc.config.sharding.tables.t_user.key-generator-column-name=user_id
 ```
 
+## 6 总结
+
+> 为什么分库分表？分库分表就是为了解决由于数据量过大而导致数据库性能降低的问题，将原来独立的数据库拆分 成若干数据库组成 ，将数据大表拆分成若干数据表组成，使得单一数据库、单一数据表的数据量变小，从而达到提 升数据库性能的目的。
+
+### 6.1 分库分表方式
+
+* 垂直分库
+* 垂直分表
+* 水平分库
+* 水平分表
+
+### 6.2 分库分表带来的问题
+
+> 由于数据分散在多个数据库，服务器导致了事务一致性问题、跨节点join问题、跨节点分页、 排序、函数，主键需要全局唯一，公共表
+
+### 6.3 最佳实践
+
+> 系统在设计之初就应该对业务数据的耦合松紧进行考量，从而进行垂直分库、垂直分表，使数据层架构清晰明了。 若非必要，无需进行水平切分，应先从缓存技术着手降低对数据库的访问压力。如果缓存使用过后，数据库访问量 还是非常大，可以考虑数据库读、写分离原则。若当前数据库压力依然大，且业务数据持续增长无法估量，最后可 考虑水平分库、分表，单表拆分数据控制在1000万以内。
+
+#### 6.3.1 不支持的SQL语句
+
+* `INSERT INTO tbl_name (col1, col2, …) VALUES(1+2, ?, …)` ——VALUES语句不支持运算 表达式
+* `INSERT INTO tbl_name (col1, col2, …) SELECT col1, col2, … FROM tbl_name WHERE col3 = ?` ——INSERT .. SELECT
+* `SELECT COUNT(col1) as count_alias FROM tbl_name GROUP BY col1 HAVING count_alias > ?`——HAVING
+* `SELECT * FROM tbl_name1 UNION SELECT * FROM tbl_name2 ` ——UNION
+* `SELECT * FROM tbl_name1 UNION ALL SELECT * FROM tbl_name2`——UNION ALL
+* `SELECT * FROM ds.tbl_name1 ` ——包含schema
+* `SELECT SUM(DISTINCT col1), SUM(col1) FROM tbl_name` ——DISTINCT 
+
+### 6.4 事务
+
+> sharding-jdbc支持三种事务
+
+* 本地事务
+
+> 在不开启任何分布式事务管理器的前提下，让每个数据节点各自管理自己的事务。 它们之间没有协调以及通信的能力，也并不互相知晓其他数据节点事务的成功与否。 本地事务在性能方面无任何损耗，但在强一致性以及最终一致性方面则力不从心。
+
+* 两阶段提交事务（XA协议）
+* 柔性事务（BASE事务）
+
+https://shardingsphere.apache.org/document/current/cn/features/transaction/
